@@ -1,0 +1,38 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/ExampleExternalContract.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.4;  //Do not change the solidity version as it negativly impacts submission grading\n\ncontract ExampleExternalContract {\n\n  bool public completed;\n\n  function complete() public payable {\n    completed = true;\n  }\n\n}\n"
+    },
+    "contracts/Staker.sol": {
+      "content": "// // SPDX-License-Identifier: MIT\n// pragma solidity 0.8.4;  //Do not change the solidity version as it negativly impacts submission grading\n\n// import \"hardhat/console.sol\";\n// import \"./ExampleExternalContract.sol\";\n\n// contract Staker {\n\n//   ExampleExternalContract public exampleExternalContract;\n\n//   constructor(address exampleExternalContractAddress) {\n//       exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);\n//   }\n\n//   // Collect funds in a payable `stake()` function and track individual `balances` with a mapping:\n//   // (Make sure to add a `Stake(address,uint256)` event and emit it for the frontend `All Stakings` tab to display)\n\n\n//   // After some `deadline` allow anyone to call an `execute()` function\n//   // If the deadline has passed and the threshold is met, it should call `exampleExternalContract.complete{value: address(this).balance}()`\n\n\n//   // If the `threshold` was not met, allow everyone to call a `withdraw()` function to withdraw their balance\n\n\n//   // Add a `timeLeft()` view function that returns the time left before the deadline for the frontend\n\n\n//   // Add the `receive()` special function that receives eth and calls stake()\n\n// }\n\n\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.4;\n\nimport \"./ExampleExternalContract.sol\";\n\ncontract Staker {\n    // State variables\n    ExampleExternalContract public exampleExternalContract;\n    mapping(address => uint256) public balances; // Track individual balances\n    uint256 public constant threshold = 1 ether; // Example threshold\n    uint256 public deadline; // Deadline timestamp\n\n    // Events\n    event Stake(address indexed staker, uint256 amount);\n\n    // Constructor\n    constructor(address exampleExternalContractAddress) {\n        exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);\n        deadline = block.timestamp + 7 days; // Set a 7-day deadline\n    }\n\n    // Stake function\n    function stake() external payable {\n        require(block.timestamp < deadline, \"Staking period has ended\");\n        require(msg.value > 0, \"Must send ETH to stake\");\n\n        balances[msg.sender] += msg.value; // Track user's balance\n        emit Stake(msg.sender, msg.value); // Emit event for frontend\n    }\n\n    // Execute function\n    function execute() external {\n        require(block.timestamp >= deadline, \"Staking period is not over yet\");\n        require(!exampleExternalContract.completed(), \"Already completed\");\n\n        if (address(this).balance >= threshold) {\n            // If threshold is met, send ETH to ExampleExternalContract\n            exampleExternalContract.complete{value: address(this).balance}();\n        }\n    }\n\n    // Withdraw function\n    function withdraw() external {\n        require(block.timestamp >= deadline, \"Staking period is not over yet\");\n        require(address(this).balance < threshold, \"Threshold met, cannot withdraw\");\n\n        uint256 userBalance = balances[msg.sender];\n        require(userBalance > 0, \"No balance to withdraw\");\n\n        balances[msg.sender] = 0; // Reset user's balance before transferring to prevent reentrancy\n        (bool success, ) = msg.sender.call{value: userBalance}(\"\");\n        require(success, \"Withdraw failed\");\n    }\n\n    // View function to check time left before the deadline\n    function timeLeft() external view returns (uint256) {\n        if (block.timestamp >= deadline) {\n            return 0;\n        } else {\n            return deadline - block.timestamp;\n        }\n    }\n\n    // Receive fallback function to accept ETH and stake it\n    // receive() external payable {\n    //     stake();\n    // }\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
