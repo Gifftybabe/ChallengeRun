@@ -10,7 +10,7 @@ const Events: NextPage = () => {
   const { data: buyTokenEvents, isLoading: isBuyEventsLoading } = useScaffoldEventHistory({
     contractName: "Vendor",
     eventName: "BuyTokens",
-    fromBlock: 0n,
+    fromBlock: 7489158n,
   });
 
   // // SellTokens Events

@@ -1,49 +1,65 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-// import { Contract } from "ethers";
 
-/**
- * Deploys a contract named "Vendor" using the deployer account and
- * constructor arguments set to the deployer address
- *
- * @param hre HardhatRuntimeEnvironment object.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const deployVendor: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  /*
-    On localhost, the deployer account is the one that comes with Hardhat, which is already funded.
+  const { deployer } = await hre.getNamedAccounts();
+  const { deploy } = hre.deployments;
 
-    When deploying to live networks (e.g `yarn deploy --network goerli`), the deployer account
-    should have sufficient balance to pay for the gas fees for contract creation.
+  // First deploy YourToken
+  const yourTokenDeployment = await deploy("YourToken", {
+    from: deployer,
+    args: [],
+    log: true,
+  });
 
-    You can generate a random account with `yarn generate` which will fill DEPLOYER_PRIVATE_KEY
-    with a random private key in the .env file (then used on hardhat.config.ts)
-    You can run the `yarn account` command to check your balance in every network.
-  */
-  // // Deploy Vendor
-  // const { deployer } = await hre.getNamedAccounts();
-  // const { deploy } = hre.deployments;
-  // const yourToken = await hre.ethers.getContract<Contract>("YourToken", deployer);
-  // const yourTokenAddress = await yourToken.getAddress();
-  // await deploy("Vendor", {
-  //   from: deployer,
-  //   // Contract constructor arguments
-  //   args: [yourTokenAddress],
-  //   log: true,
-  //   // autoMine: can be passed to the deploy function to make the deployment process faster on local networks by
-  //   // automatically mining the contract deployment transaction. There is no effect on live networks.
-  //   autoMine: true,
-  // });
-  // const vendor = await hre.ethers.getContract<Contract>("Vendor", deployer);
-  // const vendorAddress = await vendor.getAddress();
-  // // Transfer tokens to Vendor
-  // await yourToken.transfer(vendorAddress, hre.ethers.parseEther("1000"));
-  // // Transfer contract ownership to your frontend address
-  // await vendor.transferOwnership("**YOUR FRONTEND ADDRESS**");
+  console.log("Deployer address:", deployer);
+  console.log("Token address:", yourTokenDeployment.address);
+
+  // Deploy the Vendor contract with the correct token address
+  const vendorDeployment = await deploy("Vendor", {
+    from: deployer,
+    args: [yourTokenDeployment.address],
+    log: true,
+  });
+
+  console.log("Vendor contract deployed to:", vendorDeployment.address);
+
+  try {
+    // Get contract instances
+    const yourToken = await hre.ethers.getContractAt("YourToken", yourTokenDeployment.address);
+    const vendor = await hre.ethers.getContractAt("Vendor", vendorDeployment.address);
+    
+    // Transfer ownership of the Vendor contract to the deployer
+    await vendor.transferOwnership(deployer);
+    console.log("Vendor ownership transferred to deployer");
+    
+    // Check deployer's balance first
+    const deployerBalance = await yourToken.balanceOf(deployer);
+    console.log("Deployer token balance:", hre.ethers.formatEther(deployerBalance));
+
+    // Only transfer if deployer has enough tokens
+    if (deployerBalance >= hre.ethers.parseEther("1000")) {
+      // Transfer tokens to the vendor
+      const transferAmount = hre.ethers.parseEther("1000");
+      console.log(`Attempting to transfer ${hre.ethers.formatEther(transferAmount)} tokens to Vendor...`);
+      
+      const tx = await yourToken.transfer(vendorDeployment.address, transferAmount);
+      await tx.wait();
+      
+      console.log("Tokens transferred to Vendor successfully");
+
+      // Verify the transfer
+      const vendorBalance = await yourToken.balanceOf(vendorDeployment.address);
+      console.log("Vendor token balance:", hre.ethers.formatEther(vendorBalance));
+    } else {
+      console.log("Deployer doesn't have enough tokens to transfer to Vendor");
+      console.log("Make sure tokens are being minted in the YourToken constructor");
+    }
+
+  } catch (error) {
+    console.error("Error in deployment:", error);
+  }
 };
 
 export default deployVendor;
-
-// Tags are useful if you have multiple deploy files and only want to run one of them.
-// e.g. yarn deploy --tags Vendor
 deployVendor.tags = ["Vendor"];
